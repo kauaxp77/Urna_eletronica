@@ -1,0 +1,16 @@
+# Banco gerado na execução (é recriado pelo script_banco_de_dados.sql)
+urna.db
+*.db-journal
+
+# Boletins de urna exportados
+boletim_turno*.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDEs
+.idea/
+.vscode/
