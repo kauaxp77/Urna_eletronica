@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS candidatos (
     nome             TEXT    NOT NULL,
     partido          TEXT    NOT NULL,
     vice             TEXT    NOT NULL,
+    data_nascimento  TEXT,   -- AAAA-MM-DD; desempate: vence o mais idoso
     situacao         TEXT    NOT NULL DEFAULT 'APTO'
                      CHECK (situacao IN ('APTO', 'DESISTENTE', 'IMPEDIDO', 'FALECIDO')),
     no_segundo_turno INTEGER NOT NULL DEFAULT 0 CHECK (no_segundo_turno IN (0, 1))
@@ -75,11 +76,11 @@ CREATE TABLE IF NOT EXISTS votos (
 INSERT OR IGNORE INTO eleicao (id, municipio, total_eleitores_municipio, capital, turno_atual)
 VALUES (1, 'Águas Lindas de Goiás', 150000, 0, 1);
 
-INSERT OR IGNORE INTO candidatos (numero, nome, partido, vice) VALUES
-    (12, 'Ana Ribeiro',     'PVA', 'Carlos Menezes'),
-    (25, 'Bruno Albuquerque','PNT', 'Fernanda Lima'),
-    (40, 'Cláudia Santos',  'PSN', 'Rafael Duarte'),
-    (77, 'Diego Fernandes', 'MPC', 'Juliana Rocha');
+INSERT OR IGNORE INTO candidatos (numero, nome, partido, vice, data_nascimento) VALUES
+    (12, 'Ana Ribeiro',      'PVA', 'Carlos Menezes', '1972-03-15'),
+    (25, 'Bruno Albuquerque','PNT', 'Fernanda Lima',  '1980-07-22'),
+    (40, 'Cláudia Santos',   'PSN', 'Rafael Duarte',  '1965-11-02'),
+    (77, 'Diego Fernandes',  'MPC', 'Juliana Rocha',  '1988-05-30');
 
 INSERT OR IGNORE INTO eleitores (titulo, nome, secao) VALUES
     ('000000000101', 'Amanda Costa',      101),

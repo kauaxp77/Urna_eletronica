@@ -7,12 +7,34 @@ sobre as tabelas eleicao, candidatos, eleitores e votos.
 
 import os
 import sqlite3
+from datetime import date, datetime
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_BANCO = os.path.join(PASTA, "urna.db")
 ARQUIVO_SCRIPT = os.path.join(PASTA, "script_banco_de_dados.sql")
 
 SITUACOES = ("APTO", "DESISTENTE", "IMPEDIDO", "FALECIDO")
+IDADE_MINIMA_PREFEITO = 21   # Constituição Federal, art. 14, § 3º, VI, "c"
+
+
+def data_para_banco(texto):
+    """Converte 'DD/MM/AAAA' (formato da tela) para 'AAAA-MM-DD' (formato do banco)."""
+    try:
+        nascimento = datetime.strptime(texto.strip(), "%d/%m/%Y").date()
+    except ValueError:
+        raise ErroUrna("Data de nascimento inválida. Use o formato DD/MM/AAAA.")
+    hoje = date.today()
+    idade = hoje.year - nascimento.year - ((hoje.month, hoje.day) < (nascimento.month, nascimento.day))
+    if idade < IDADE_MINIMA_PREFEITO:
+        raise ErroUrna(f"O candidato a prefeito deve ter no mínimo {IDADE_MINIMA_PREFEITO} anos.")
+    return nascimento.isoformat()
+
+
+def data_para_tela(texto):
+    """Converte 'AAAA-MM-DD' para 'DD/MM/AAAA'. Retorna '' se não houver data."""
+    if not texto:
+        return ""
+    return datetime.strptime(texto, "%Y-%m-%d").strftime("%d/%m/%Y")
 
 
 class ErroUrna(Exception):
@@ -27,12 +49,21 @@ class BancoDeDados:
         self.conexao.execute("PRAGMA foreign_keys = ON")
         if banco_novo:
             self._executar_script()
+        else:
+            self._atualizar_estrutura()
 
     def _executar_script(self):
         """Cria as tabelas e os dados iniciais a partir do script SQL."""
         with open(ARQUIVO_SCRIPT, encoding="utf-8") as arquivo:
             self.conexao.executescript(arquivo.read())
         self.conexao.commit()
+
+    def _atualizar_estrutura(self):
+        """Bancos criados por versões antigas não têm a coluna data_nascimento."""
+        colunas = {linha["name"] for linha in self.conexao.execute("PRAGMA table_info(candidatos)")}
+        if "data_nascimento" not in colunas:
+            with self.conexao:
+                self.conexao.execute("ALTER TABLE candidatos ADD COLUMN data_nascimento TEXT")
 
     def fechar(self):
         self.conexao.close()
@@ -72,15 +103,17 @@ class BancoDeDados:
         if situacao not in SITUACOES:
             raise ErroUrna("Situação inválida.")
 
-    def inserir_candidato(self, numero, nome, partido, vice, situacao="APTO"):
+    def inserir_candidato(self, numero, nome, partido, vice, nascimento, situacao="APTO"):
         self._validar_candidato(numero, nome, partido, vice, situacao)
+        nascimento = data_para_banco(nascimento)
         if self.total_votos() > 0:
             raise ErroUrna("Não é possível cadastrar candidatos depois que a votação começou.")
         try:
             with self.conexao:
                 self.conexao.execute(
-                    "INSERT INTO candidatos (numero, nome, partido, vice, situacao) VALUES (?, ?, ?, ?, ?)",
-                    (numero, nome.strip(), partido.strip().upper(), vice.strip(), situacao),
+                    "INSERT INTO candidatos (numero, nome, partido, vice, data_nascimento, situacao)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (numero, nome.strip(), partido.strip().upper(), vice.strip(), nascimento, situacao),
                 )
         except sqlite3.IntegrityError:
             raise ErroUrna(f"Já existe um candidato com o número {numero}.")
@@ -91,8 +124,9 @@ class BancoDeDados:
     def buscar_candidato_por_numero(self, numero):
         return self.conexao.execute("SELECT * FROM candidatos WHERE numero = ?", (numero,)).fetchone()
 
-    def atualizar_candidato(self, candidato_id, numero, nome, partido, vice, situacao):
+    def atualizar_candidato(self, candidato_id, numero, nome, partido, vice, nascimento, situacao):
         self._validar_candidato(numero, nome, partido, vice, situacao)
+        nascimento = data_para_banco(nascimento)
         atual = self.conexao.execute("SELECT * FROM candidatos WHERE id = ?", (candidato_id,)).fetchone()
         if atual is None:
             raise ErroUrna("Candidato não encontrado.")
@@ -101,8 +135,10 @@ class BancoDeDados:
         try:
             with self.conexao:
                 self.conexao.execute(
-                    "UPDATE candidatos SET numero = ?, nome = ?, partido = ?, vice = ?, situacao = ? WHERE id = ?",
-                    (numero, nome.strip(), partido.strip().upper(), vice.strip(), situacao, candidato_id),
+                    "UPDATE candidatos SET numero = ?, nome = ?, partido = ?, vice = ?, data_nascimento = ?,"
+                    " situacao = ? WHERE id = ?",
+                    (numero, nome.strip(), partido.strip().upper(), vice.strip(), nascimento, situacao,
+                     candidato_id),
                 )
         except sqlite3.IntegrityError:
             raise ErroUrna(f"Já existe um candidato com o número {numero}.")
@@ -204,14 +240,18 @@ class BancoDeDados:
         ).fetchone()[0]
 
     def contagem(self, turno):
-        """Retorna (lista de candidatos com votos, brancos, nulos) do turno."""
+        """Retorna (lista de candidatos com votos, brancos, nulos) do turno.
+
+        Ordem: mais votos primeiro; em caso de empate, o mais idoso primeiro
+        (Constituição, art. 77, § 5º, e Código Eleitoral, art. 110).
+        """
         candidatos = self.conexao.execute(
             """
             SELECT c.*, COUNT(v.id) AS votos
               FROM candidatos c
               LEFT JOIN votos v ON v.candidato_id = c.id AND v.turno = ?
              GROUP BY c.id
-             ORDER BY votos DESC, c.numero
+             ORDER BY votos DESC, c.data_nascimento IS NULL, c.data_nascimento, c.numero
             """,
             (turno,),
         ).fetchall()

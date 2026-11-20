@@ -18,7 +18,7 @@ from datetime import datetime
 from tkinter import messagebox, ttk
 
 import apuracao
-from database import SITUACOES, BancoDeDados, ErroUrna
+from database import SITUACOES, BancoDeDados, ErroUrna, data_para_tela
 
 try:
     import winsound  # som de "fim" da urna (somente Windows)
@@ -315,6 +315,7 @@ class AbaCandidatos(ttk.Frame):
         self.var_nome = tk.StringVar()
         self.var_partido = tk.StringVar()
         self.var_vice = tk.StringVar()
+        self.var_nascimento = tk.StringVar()
         self.var_situacao = tk.StringVar(value="APTO")
 
         campos = [("Número (2 dígitos):", self.var_numero, 8), ("Nome:", self.var_nome, 32),
@@ -327,6 +328,8 @@ class AbaCandidatos(ttk.Frame):
         ttk.Label(formulario, text="Situação:").grid(row=2, column=0, sticky="w", pady=4)
         ttk.Combobox(formulario, textvariable=self.var_situacao, values=SITUACOES, state="readonly",
                      width=14).grid(row=2, column=1, sticky="w", pady=4)
+        ttk.Label(formulario, text="Nascimento (DD/MM/AAAA):").grid(row=2, column=2, sticky="w", padx=(0, 6), pady=4)
+        ttk.Entry(formulario, textvariable=self.var_nascimento, width=12).grid(row=2, column=3, sticky="w", pady=4)
 
         botoes = ttk.Frame(self)
         botoes.pack(fill="x", pady=10)
@@ -337,9 +340,9 @@ class AbaCandidatos(ttk.Frame):
         ttk.Label(botoes, text="Clique em um candidato da lista para alterar ou excluir.",
                   foreground="#555").pack(side="right")
 
-        colunas = ("numero", "nome", "partido", "vice", "situacao", "segundo")
-        titulos = ("Número", "Nome", "Partido", "Vice-prefeito", "Situação", "No 2º turno")
-        larguras = (70, 220, 90, 220, 110, 100)
+        colunas = ("numero", "nome", "partido", "vice", "nascimento", "situacao", "segundo")
+        titulos = ("Número", "Nome", "Partido", "Vice-prefeito", "Nascimento", "Situação", "No 2º turno")
+        larguras = (70, 200, 80, 200, 100, 110, 100)
         self.tabela = ttk.Treeview(self, columns=colunas, show="headings", height=12)
         for coluna, titulo, largura in zip(colunas, titulos, larguras):
             self.tabela.heading(coluna, text=titulo)
@@ -350,7 +353,7 @@ class AbaCandidatos(ttk.Frame):
 
     def _dados(self):
         return (ler_inteiro(self.var_numero.get(), "Número"), self.var_nome.get(), self.var_partido.get(),
-                self.var_vice.get(), self.var_situacao.get())
+                self.var_vice.get(), self.var_nascimento.get(), self.var_situacao.get())
 
     def cadastrar(self):
         try:
@@ -400,16 +403,17 @@ class AbaCandidatos(ttk.Frame):
         if not selecao:
             return
         self.selecionado = int(selecao[0])
-        numero, nome, partido, vice, situacao, _ = self.tabela.item(selecao[0], "values")
+        numero, nome, partido, vice, nascimento, situacao, _ = self.tabela.item(selecao[0], "values")
         self.var_numero.set(numero)
         self.var_nome.set(nome)
         self.var_partido.set(partido)
         self.var_vice.set(vice)
+        self.var_nascimento.set(nascimento)
         self.var_situacao.set(situacao)
 
     def limpar(self):
         self.selecionado = None
-        for variavel in (self.var_numero, self.var_nome, self.var_partido, self.var_vice):
+        for variavel in (self.var_numero, self.var_nome, self.var_partido, self.var_vice, self.var_nascimento):
             variavel.set("")
         self.var_situacao.set("APTO")
         self.tabela.selection_remove(self.tabela.selection())
@@ -419,7 +423,8 @@ class AbaCandidatos(ttk.Frame):
         for c in self.db.listar_candidatos():
             tags = () if c["situacao"] == "APTO" else ("inapto",)
             self.tabela.insert("", "end", iid=str(c["id"]), tags=tags, values=(
-                c["numero"], c["nome"], c["partido"], c["vice"], c["situacao"],
+                c["numero"], c["nome"], c["partido"], c["vice"], data_para_tela(c["data_nascimento"]),
+                c["situacao"],
                 "Sim" if c["no_segundo_turno"] else "-"))
 
 
@@ -721,6 +726,7 @@ class AbaConfiguracao(ttk.Frame):
             "  metade dos votos válidos. Se ninguém conseguir, há 2º turno entre os dois mais votados.\n"
             "• Se um finalista morrer, desistir ou ficar impedido antes do 2º turno, é convocado o\n"
             "  remanescente com a maior votação (altere a situação do candidato na aba 'Candidatos').\n"
+            "• Só candidatos APTOS podem ser eleitos. Em caso de empate, vence o mais idoso.\n"
             "• Votos brancos e nulos não são votos válidos.\n"
             f"• Para garantir a apuração, são exigidos no mínimo {apuracao.MINIMO_VOTOS} votos por turno.\n"
             "• Cada eleitor vota uma única vez por turno; o voto é secreto (não fica ligado ao eleitor)."

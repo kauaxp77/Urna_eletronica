@@ -9,11 +9,14 @@ conforme a Resolução TSE nº 23.677/2021 (alterada pela Res. nº 23.731/2024):
   caso contrário, há segundo turno entre os dois mais votados.
 * Se, antes do segundo turno, um finalista morrer, desistir ou ficar
   impedido, é convocado o remanescente com a maior votação.
+* Só candidatos APTOS podem ser eleitos ou ir ao segundo turno.
+* Empate: vence (ou vai ao segundo turno) o candidato mais idoso
+  (Constituição Federal, art. 77, § 5º, e Código Eleitoral, art. 110).
 
 Votos válidos = votos nominais (brancos e nulos não entram na conta).
 """
 
-from database import ErroUrna
+from database import ErroUrna, data_para_tela
 
 MINIMO_VOTOS = 10            # o enunciado pede no mínimo 10 iterações de votação
 LIMITE_ELEITORES = 200_000
@@ -71,8 +74,16 @@ def apurar(db, turno):
         resultado["mensagem"] = "Não houve votos válidos. Nenhum candidato foi eleito."
         return resultado
 
-    primeiro = candidatos[0]
-    empate = len(candidatos) > 1 and candidatos[1]["votos"] == primeiro["votos"]
+    # Votos em quem desistiu, morreu ou ficou impedido continuam contando como
+    # válidos, mas esse candidato não pode ser eleito.
+    aptos = [c for c in candidatos if c["situacao"] == "APTO"]
+    if not aptos or aptos[0]["votos"] == 0:
+        resultado["situacao"] = "SEM_VOTOS_VALIDOS"
+        resultado["mensagem"] = "Nenhum candidato APTO recebeu votos. Ninguém foi eleito."
+        return resultado
+
+    primeiro = aptos[0]
+    empatado = aptos[1] if len(aptos) > 1 and aptos[1]["votos"] == primeiro["votos"] else None
     percentual = primeiro["votos"] / validos * 100
 
     if turno == 1 and exige_maioria_absoluta(db.obter_eleicao()):
@@ -97,22 +108,35 @@ def apurar(db, turno):
                 f"Ninguém obteve mais de 50% dos votos válidos (maior: {percentual:.1f}%).\n"
                 f"Haverá SEGUNDO TURNO: {nomes}"
             )
+            aptos_1turno = [c for c in db.contagem(1)[0] if c["situacao"] == "APTO"]
+            if len(aptos_1turno) > 2 and aptos_1turno[2]["votos"] == finalistas[1]["votos"]:
+                resultado["mensagem"] += (
+                    f"\nEmpate pela 2ª vaga com {aptos_1turno[2]['nome']}: vai o mais idoso"
+                    " - Constituição, art. 77, § 5º."
+                )
         return resultado
 
-    if empate:
-        resultado["situacao"] = "EMPATE"
-        resultado["mensagem"] = (
-            f"EMPATE entre {primeiro['nome']} e {candidatos[1]['nome']} com {primeiro['votos']} votos.\n"
-            "Pela legislação (Código Eleitoral, art. 110), vence o candidato mais idoso."
+    regra = "2º turno" if turno == 2 else "maioria simples"
+    desempate = ""
+    if empatado:
+        datas = (primeiro["data_nascimento"], empatado["data_nascimento"])
+        if None in datas or datas[0] == datas[1]:
+            resultado["situacao"] = "EMPATE"
+            resultado["mensagem"] = (
+                f"EMPATE entre {primeiro['nome']} e {empatado['nome']} com {primeiro['votos']} votos.\n"
+                "Pela legislação vence o mais idoso, mas a data de nascimento não permite desempatar."
+            )
+            return resultado
+        desempate = (
+            f"\nEmpate com {empatado['nome']}: vence o mais idoso (nasc. "
+            f"{data_para_tela(primeiro['data_nascimento'])}) - Código Eleitoral, art. 110."
         )
-        return resultado
 
     resultado["situacao"] = "ELEITO"
     resultado["eleito"] = primeiro
-    regra = "2º turno" if turno == 2 else "maioria simples"
     resultado["mensagem"] = (
         f"ELEITO(A): {primeiro['nome']} ({primeiro['numero']} - {primeiro['partido']})\n"
-        f"com {primeiro['votos']} votos ({percentual:.1f}% dos válidos) - {regra}."
+        f"com {primeiro['votos']} votos ({percentual:.1f}% dos válidos) - {regra}." + desempate
     )
     return resultado
 
@@ -122,6 +146,7 @@ def escolher_finalistas(db):
 
     Como só considera candidatos aptos, se um finalista desistir, morrer
     ou ficar impedido, o próximo mais votado é convocado automaticamente.
+    Empates são resolvidos a favor do mais idoso (ordem de db.contagem).
     """
     candidatos, _, _ = db.contagem(1)
     aptos = [c for c in candidatos if c["situacao"] == "APTO"]

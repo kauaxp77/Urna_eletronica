@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="#-demonstração-em-vídeo">Vídeo</a> •
   <a href="#-funcionalidades">Funcionalidades</a> •
   <a href="#-telas">Telas</a> •
   <a href="#-como-executar">Como executar</a> •
@@ -36,6 +37,15 @@ urna eletrônica: **cadastrar candidatos e eleitores**, **receber os votos** gar
 
 Os dados de exemplo são do município de **Águas Lindas de Goiás (GO)** 💚. Os candidatos e eleitores são fictícios.
 
+## 🎬 Demonstração em vídeo
+
+<p align="center">
+  <a href="https://youtu.be/s6FRVRsS_Ls">
+    <img src="https://img.youtube.com/vi/s6FRVRsS_Ls/hqdefault.jpg" alt="Assistir à demonstração no YouTube" width="560">
+  </a>
+  <br><sub>▶️ Clique na imagem para assistir no YouTube</sub>
+</p>
+
 ## ✨ Funcionalidades
 
 | | Recurso | Descrição |
@@ -44,7 +54,7 @@ Os dados de exemplo são do município de **Águas Lindas de Goiás (GO)** 💚.
 | 🪪 | **Terminal do mesário** | O eleitor só vota depois de ser liberado pelo número do título |
 | 🔒 | **Voto único** | O voto e a marcação de "já votou" são gravados na **mesma transação**; uma segunda tentativa é bloqueada |
 | 🤫 | **Voto secreto** | A tabela de votos não guarda quem votou, apenas em quem |
-| 👤 | **CRUD de candidatos** | Cadastrar, listar, alterar e excluir (número, nome, partido, vice e situação) |
+| 👤 | **CRUD de candidatos** | Cadastrar, listar, alterar e excluir (número, nome, partido, vice, nascimento e situação) |
 | 👥 | **CRUD de eleitores** | Cadastrar, listar, pesquisar, alterar e excluir, mostrando quem já votou |
 | 📊 | **Apuração** | Votos válidos, brancos e nulos, percentuais e gráfico de barras |
 | 🔁 | **2º turno** | Calculado automaticamente quando a maioria absoluta é exigida e não é atingida |
@@ -95,7 +105,7 @@ Para recomeçar do zero, basta apagar o `urna.db`.
 
 ## ✅ Testes automatizados
 
-As regras de negócio têm **19 testes** com `unittest` (biblioteca padrão, sem instalar nada). Cada teste usa um
+As regras de negócio têm **25 testes** com `unittest` (biblioteca padrão, sem instalar nada). Cada teste usa um
 banco temporário, então o `urna.db` não é alterado.
 
 ```bash
@@ -103,8 +113,9 @@ python -m unittest -v
 ```
 
 Cobrem: voto único, sigilo do voto, CRUD e validações de candidatos e eleitores, mínimo de 10 votos,
-maioria simples, empate, brancos/nulos, maioria absoluta (incluindo o caso de exatamente 50%), 2º turno
-completo e convocação do próximo colocado quando um finalista desiste.
+maioria simples, brancos/nulos, maioria absoluta (incluindo o caso de exatamente 50%), 2º turno completo,
+convocação do próximo colocado quando um finalista desiste, candidato inapto que não pode ser eleito,
+desempate pelo mais idoso e idade mínima de 21 anos.
 
 ## ⚖️ Regras eleitorais
 
@@ -116,6 +127,10 @@ Baseadas na **Resolução TSE nº 23.677/2021**, alterada pela **nº 23.731/2024
 | Capital ou mais de 200 mil eleitores | **Maioria absoluta**: mais de 50% dos votos válidos | ✅ Entre os 2 mais votados, se ninguém passar de 50% |
 
 - Votos **brancos e nulos** não são válidos.
+- Só candidatos **APTOS** podem ser eleitos. Votos em quem desistiu, morreu ou ficou impedido continuam
+  válidos, mas a vitória vai para o candidato apto mais votado.
+- **Empate:** vence (ou vai ao 2º turno) o candidato **mais idoso** (Constituição, art. 77, § 5º, e Código Eleitoral, art. 110).
+- Idade mínima para prefeito: **21 anos** (Constituição, art. 14, § 3º, VI, "c").
 - Se um finalista **desistir, morrer ou ficar impedido** antes do 2º turno, é convocado o remanescente mais votado. Basta alterar a situação do candidato.
 - O resultado só é divulgado depois de **no mínimo 10 votos** no turno.
 
@@ -136,6 +151,7 @@ erDiagram
         text nome
         text partido
         text vice
+        text data_nascimento
         text situacao
         int no_segundo_turno
     }
