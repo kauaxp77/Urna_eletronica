@@ -20,6 +20,7 @@
   <a href="#-funcionalidades">Funcionalidades</a> •
   <a href="#-telas">Telas</a> •
   <a href="#-como-executar">Como executar</a> •
+  <a href="#-testes-automatizados">Testes</a> •
   <a href="#-regras-eleitorais">Regras</a> •
   <a href="#-banco-de-dados">Banco de dados</a> •
   <a href="#-estrutura-do-projeto">Estrutura</a>
@@ -92,6 +93,19 @@ Para recomeçar do zero, basta apagar o `urna.db`.
 4. Depois de **10 votos ou mais**, abra a aba **Apuração** para ver o resultado.
 5. Para testar o **2º turno**, antes de votar mude o total de eleitores para mais de 200 mil (ou marque "capital") na aba **Configuração**.
 
+## ✅ Testes automatizados
+
+As regras de negócio têm **19 testes** com `unittest` (biblioteca padrão, sem instalar nada). Cada teste usa um
+banco temporário, então o `urna.db` não é alterado.
+
+```bash
+python -m unittest -v
+```
+
+Cobrem: voto único, sigilo do voto, CRUD e validações de candidatos e eleitores, mínimo de 10 votos,
+maioria simples, empate, brancos/nulos, maioria absoluta (incluindo o caso de exatamente 50%), 2º turno
+completo e convocação do próximo colocado quando um finalista desiste.
+
 ## ⚖️ Regras eleitorais
 
 Baseadas na **Resolução TSE nº 23.677/2021**, alterada pela **nº 23.731/2024**:
@@ -153,9 +167,13 @@ Urna_eletronica/
 ├── database.py                 # Conexão com o SQLite e operações de CRUD
 ├── apuracao.py                 # Regras eleitorais: maioria simples/absoluta, 2º turno e desistência
 ├── script_banco_de_dados.sql   # Criação das tabelas e dados de exemplo
-├── ROTEIRO_DO_VIDEO.md         # Roteiro da apresentação em vídeo
-├── LINK_DO_VIDEO_...txt        # Link do vídeo de apresentação
-└── docs/                       # Banner e capturas de tela
+├── LINK_DO_VIDEO_...txt        # Link do vídeo de apresentação (entrega da ATPS)
+├── tests/
+│   └── test_urna.py            # Testes automatizados das regras (unittest)
+└── docs/
+    ├── banner.png
+    ├── screenshots/            # Capturas de tela usadas neste README
+    └── ROTEIRO_DO_VIDEO.md     # Roteiro da apresentação em vídeo
 ```
 
 ## 🛠️ Tecnologias
@@ -164,6 +182,7 @@ Urna_eletronica/
 - **Tkinter / ttk**: interface gráfica
 - **SQLite 3**: banco de dados (módulo `sqlite3`)
 - **winsound**: som de "FIM" da urna (no Windows)
+- **unittest**: testes automatizados
 
 ## 👨‍💻 Autor
 
