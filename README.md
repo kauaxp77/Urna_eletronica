@@ -183,13 +183,11 @@ Urna_eletronica/
 ├── database.py                 # Conexão com o SQLite e operações de CRUD
 ├── apuracao.py                 # Regras eleitorais: maioria simples/absoluta, 2º turno e desistência
 ├── script_banco_de_dados.sql   # Criação das tabelas e dados de exemplo
-├── LINK_DO_VIDEO_...txt        # Link do vídeo de apresentação (entrega da ATPS)
 ├── tests/
 │   └── test_urna.py            # Testes automatizados das regras (unittest)
 └── docs/
     ├── banner.png
-    ├── screenshots/            # Capturas de tela usadas neste README
-    └── ROTEIRO_DO_VIDEO.md     # Roteiro da apresentação em vídeo
+    └── screenshots/            # Capturas de tela usadas neste README
 ```
 
 ## 🛠️ Tecnologias
